@@ -34,10 +34,10 @@ import math
 ##############################################################
 
 ################# ADD UTILITY FUNCTIONS HERE #################
-
-
-
-
+def calculate_angle(corners):
+    p1, p2 = corners[0], corners[1]
+    angle = math.atan2(p2[1] - p1[1], p2[0] - p1[0])
+    return math.degrees(angle)
 
 ##############################################################
 
@@ -99,7 +99,23 @@ def detect_ArUco_details(image):
     ArUco_corners = {}
     
     ##############	ADD YOUR CODE HERE	##############
+    aruco_dict = aruco.getPredefinedDictionary(aruco.DICT_4X4_250)
+    arucoParams = aruco.DetectorParameters()
+    # GrayScale Conversion
+    gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
+    # Detect ArUco markers
+    corners, ids, _ = aruco.detectMarkers(gray_image, aruco_dict, parameters=arucoParams)
+
+    if ids is not None:
+        for i in range(len(ids)):
+            marker_id = int(ids[i][0])
+            marker_center = [int(coord) for coord in list(np.mean(corners[i][0], axis=0).astype(int))]
+            marker_angle = int(calculate_angle(corners[i][0]))  # Calculate the angle
+
+            # Store details in dictionaries
+            ArUco_details_dict[marker_id] = [marker_center, marker_angle]
+            ArUco_corners[marker_id] = [[int(corner[0]), int(corner[1])] for corner in corners[i][0]]
     ##################################################
     
     return ArUco_details_dict, ArUco_corners 
