@@ -15,11 +15,10 @@
 *****************************************************************************************
 '''
 
-# Team ID:			[ Team-ID ]
-# Author List:		[ Names of team members worked on this file separated by Comma: Name1, Name2, ... ]
+# Team ID:		 2527
+# Author List:		Shubham, Sanskruti
 # Filename:			task_2a.py
-# Functions:		detect_ArUco_details
-# 					[ Comma separated list of functions in this file ]
+# Functions:		detect_ArUco_details, calculate_angle, mark_,ArUco_image
 
 
 ####################### IMPORT MODULES #######################
