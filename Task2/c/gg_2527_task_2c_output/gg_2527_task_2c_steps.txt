@@ -1,0 +1,10 @@
+Team ID = 2527
+Trained weights drive link = "https://drive.google.com/file/d/1m8tl-NM-HPUrwHu_V4c1W8Vua4laRviF/view?usp=drive_link"    
+###############################################################################
+'''
+1. I first opened the marked image of the arena and identified aruco markers to use as reference to crop out the required parts.
+2. I then applied the changes to the corner coordinates to get perfect crop.
+3. I then extracted the selected region of interest from arena image to get np array of each image for selected area.
+4. Formed a list of these areas and used it for event_identification function.
+5. For Classification, Since this resolution was roughly 50x50 i upscaled it using EDSR model because it wasn't as accurate 
+yet due to the low resolution.
