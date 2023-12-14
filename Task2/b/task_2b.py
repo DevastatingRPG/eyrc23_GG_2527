@@ -84,14 +84,19 @@ destroyed_building = "destroyedbuilding"
 	event = classify_event(image_path)
 	'''
 def classify_event(image):
-    device = "cuda" if torch.cuda.is_available() else "cpu"
+    if torch.cuda.is_available(): 
+        dev = "cuda:0" 
+    else: 
+        dev = "cpu" 
+    device = torch.device(dev)
+    # device = "cuda" if torch.cuda.is_available() else "cpu"
     image = cv2.imread(image)
     sr = cv2.dnn_superres.DnnSuperResImpl_create()
     path = "EDSR_x4.pb"   
     sr.readModel(path)   
     sr.setModel("edsr",4)   
     result = sr.upsample(image)
-    model = torch.load('model.tf')
+    model = torch.load('model.tf').to(device)
     model.eval()
     image_transform = transforms.Compose([
             transforms.ToTensor(),
