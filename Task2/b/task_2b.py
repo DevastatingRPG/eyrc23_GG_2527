@@ -35,9 +35,11 @@ import os
 '''
 You can import your required libraries here
 '''
+import RRDBNet_arch as arch     
 import cv2
 import torch
-from torchvision import transforms
+import torch.nn as nn
+from torchvision import transforms, models
 from PIL import Image
 # DECLARING VARIABLES (DO NOT CHANGE/REMOVE THESE VARIABLES)
 detected_list = []
@@ -135,7 +137,6 @@ destroyed_building = "destroyedbuilding"
 
 def classify_event(image):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(device)
 
     image = cv2.imread(image)
     sr = cv2.dnn_superres.DnnSuperResImpl_create()
@@ -146,17 +147,20 @@ def classify_event(image):
     # edsr_model = torch.load(path).to(device)
     # edsr_model.eval()
 
-    scale = 0.5  #50% of the original image
-    width = int(image.shape[1] * scale)
-    height = int(image.shape[0] * scale)
-    dim = (width, height)    
-    cv2.resize(image, dim, interpolation = cv2.INTER_AREA)
-    print("hello")
+    # scale = 0.5  #50% of the original image
+    # width = int(image.shape[1] * scale)
+    # height = int(image.shape[0] * scale)
+    # dim = (width, height)    
+    # cv2.resize(image, dim, interpolation = cv2.INTER_AREA)
     # result = sr.upsample(image)
     result = image
-    print("Hello")
-    model = torch.load('model.tf')
-    model = model.to(device)
+    model = models.efficientnet_v2_s().to(device)
+    model.classifier = torch.nn.Sequential(
+        nn.Dropout(p=0.2, inplace=True),
+        nn.Linear(in_features=1280, out_features=5, bias=True),
+        # nn.ReLU6(),
+    ).to(device)
+    model.load_state_dict(torch.load('w2.tf'))
     model.eval()
 
     image_transform = transforms.Compose([
