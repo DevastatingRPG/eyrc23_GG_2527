@@ -21,6 +21,8 @@
 
 
 ####################### IMPORT MODULES #######################
+import os
+os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 import sys
 import cv2
 import numpy as np
@@ -32,7 +34,7 @@ import imutils
 import math
 from cv2 import aruco  
 import RRDBNet_arch as arch     
-from torchvision.models import efficientnet_v2_s
+from torchvision.models import efficientnet_v2_s, EfficientNet_V2_S_Weights
 from skimage import exposure, io, color
 
 ##############################################################
@@ -95,7 +97,7 @@ def task_4a_return():
     identified_labels = {}  
     
 ##############	ADD YOUR CODE HERE	##############
-    img = cv2.imread("test2.jpg")
+    img = cv2.imread("eval.jpg")
     img = imutils.resize(img, width=960)
     _, ArUco_corners = detect_ArUco_details(img)
     marking_img = np.copy(img)
@@ -121,17 +123,17 @@ def task_4a_return():
     model.classifier = torch.nn.Sequential(
         nn.Dropout(p=0.2, inplace=True),
         nn.Linear(in_features=1280, out_features=5, bias=True),
-        # nn.ReLU6(),
     ).to(device)
-    model.load_state_dict(torch.load('w3.tf'))
+    model.load_state_dict(torch.load('weights.tf'))
     model.eval()
+    
     image_transform = transforms.Compose([
             transforms.ToTensor(),
             transforms.Resize((224, 224), antialias=False),
             
             transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
         ])
-    
+        
     model_path = 'RRDB_ESRGAN_x4.pth'  # models/RRDB_ESRGAN_x4.pth OR models/RRDB_PSNR_x4.pth
 
     modelup = arch.RRDBNet(3, 3, 64, 23, gc=32)
@@ -146,11 +148,6 @@ def task_4a_return():
         br_adj = [br[0] - 10, br[1] - 4]
         roi = img[tl_adj[1]:br_adj[1], tl_adj[0]:br_adj[0]]
         
-
-        # Apply a blur to the image
-        blurred = cv2.blur(roi, (5, 5))
-        # Apply a bilateral filter to the image
-        filtered = cv2.bilateralFilter(roi, d=9, sigmaColor=75, sigmaSpace=75)
         # Perform morphological opening
         kernel = np.ones((5,5),np.uint8)
         opened = cv2.morphologyEx(roi, cv2.MORPH_OPEN, kernel)
@@ -180,45 +177,25 @@ def task_4a_return():
 
         eventlist.append(crop)
         cv2.imwrite(temp, crop)
-        crop = cv2.imread(temp, cv2.IMREAD_COLOR)
-        crop = cv2.resize(crop, (150, 150))
-        crop = cv2.fastNlMeansDenoisingColored(crop, None, h=10, templateWindowSize=7, searchWindowSize=21)
-
-        equalized_image = np.zeros_like(crop)
-        for i in range(3):  # Iterate over R, G, B channels
-            equalized_image[..., i] = exposure.equalize_hist(crop[..., i])
-
-        cv2.imshow("test", equalized_image)
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
-
-
-        # crop = cv2.resize(crop, (200, 200))
-        # cv2.imshow("test", crop)
-        # cv2.waitKey(0)
-        # cv2.destroyAllWindows()
-        # crop = decrease_resolution(crop, 150, 150)
-    
-    
-        # ESRGAN
-
-        crop = crop * 1.0 / 255
-        crop = torch.from_numpy(np.transpose(crop[:, :, [2, 1, 0]], (2, 0, 1))).float()
-        img_LR = crop.unsqueeze(0)
-        img_LR = img_LR.to(device)
-        with torch.no_grad():
-            output = modelup(img_LR).data.squeeze().float().cpu().clamp_(0, 1).numpy()
-        output = np.transpose(output[[2, 1, 0], :, :], (1, 2, 0))
-        output = (output * 255.0).round()
-        cv2.imwrite(temp, output)
-        result = cv2.imread(temp, cv2.IMREAD_COLOR)   
-
-        # cv2.imshow("denoised Image", result)
-        # cv2.waitKey(0)
-        # cv2.destroyAllWindows()
+        result = cv2.imread(temp, cv2.IMREAD_COLOR)
+        print('helo')
         
+        # result = cv2.resize(result, (100, 100))
 
-        # result = cv2.
+
+        # img = cv2.imread(temp, cv2.IMREAD_COLOR)
+        # cropped = result * 1.0 / 255
+        # cropped = torch.from_numpy(np.transpose(cropped[:, :, [2, 1, 0]], (2, 0, 1))).float()
+        # img_LR = cropped.unsqueeze(0)
+        # img_LR = img_LR.to(device)                                 
+        # with torch.no_grad():
+        #     output = model(img_LR).data.squeeze().float().cpu().clamp_(0, 1).numpy()
+        # output = np.transpose(output[[2, 1, 0], :, :], (1, 2, 0))
+        # output = (output * 255.0).round()
+        # # cv2.imwrite(output_path, output)
+        # result = output
+
+
 
         with torch.inference_mode():
             # 6. Transform and add an extra dimension to image (model requires samples in [batch_size, color_channels, height, width])

@@ -48,29 +48,23 @@ def process_images(input_folder, output_folder, target_width, target_height):
                     scaled_image = decrease_resolution(original, target_width, target_height)
                     cv2.imwrite(output_path, scaled_image)
 
-                    # img = cv2.imread(output_path, cv2.IMREAD_COLOR)
-                    # img = img * 1.0 / 255
-                    # img = torch.from_numpy(np.transpose(img[:, :, [2, 1, 0]], (2, 0, 1))).float()
-                    # img_LR = img.unsqueeze(0)
-                    # img_LR = img_LR.to(device)
-                                  
-
-                    # with torch.no_grad():
-                    #     output = model(img_LR).data.squeeze().float().cpu().clamp_(0, 1).numpy()
-                    # output = np.transpose(output[[2, 1, 0], :, :], (1, 2, 0))
-                    # output = (output * 255.0).round()
-                    # cv2.imwrite(output_path, output)
+                    img = cv2.imread(output_path, cv2.IMREAD_COLOR)
+                    img = img * 1.0 / 255
+                    img = torch.from_numpy(np.transpose(img[:, :, [2, 1, 0]], (2, 0, 1))).float()
+                    img_LR = img.unsqueeze(0)
+                    img_LR = img_LR.to(device)                                 
+                    with torch.no_grad():
+                        output = model(img_LR).data.squeeze().float().cpu().clamp_(0, 1).numpy()
+                    output = np.transpose(output[[2, 1, 0], :, :], (1, 2, 0))
+                    output = (output * 255.0).round()
+                    cv2.imwrite(output_path, output)
                     
                     # img_noised = cv2.imread(output_path)
                     # # Non-Local Means Denoising
                     # img_denoised = cv2.fastNlMeansDenoisingColored(img_noised, None, h=10, templateWindowSize=7, searchWindowSize=21)
 
                     # cv2.imwrite(output_path, img_denoised)
-                    # result = sr.upsample(scaled_image)
-                    # Add noise
-                    # noised_image = add_noise(scaled_image, noise_level)
-
-                    # Save the processed image
+ 
                     
 
 
@@ -82,8 +76,8 @@ test_input_folder = r'data\events\test'
 test_output_folder = r'data\events\test_scaled'
 
 # Set scale and noise parameters
-target_width = 150
-target_height = 150
+target_width = 100
+target_height = 100
 noise_level = 200
 
 # Process train images
