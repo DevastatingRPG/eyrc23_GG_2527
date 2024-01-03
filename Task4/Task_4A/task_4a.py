@@ -23,7 +23,7 @@
 ####################### IMPORT MODULES #######################
 import os
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
-import sys
+import time
 import cv2
 import numpy as np
 import copy
@@ -31,19 +31,16 @@ import torch
 import torch.nn as nn
 from torchvision import transforms  
 import imutils     
-import math
+import ctypes
 from cv2 import aruco  
 import RRDBNet_arch as arch     
 from torchvision.models import efficientnet_v2_s, EfficientNet_V2_S_Weights
-from skimage import exposure, io, color
 
 ##############################################################
 
 
 
 ################# ADD UTILITY FUNCTIONS HERE #################
-
-
 def detect_ArUco_details(image):
     ArUco_details_dict = {}
     ArUco_corners = {}
@@ -69,11 +66,6 @@ def detect_ArUco_details(image):
     
     return ArUco_details_dict, ArUco_corners 
 
-def decrease_resolution(image, target_width, target_height):
-    dim = (target_width, target_height)
-    resized = cv2.resize(image, dim, interpolation=cv2.INTER_AREA)
-    return resized
-
 ##############################################################
 
 
@@ -97,11 +89,56 @@ def task_4a_return():
     identified_labels = {}  
     
 ##############	ADD YOUR CODE HERE	##############
+    # # Get screen size
+    # user32 = ctypes.windll.user32
+    # screen_width = user32.GetSystemMetrics(0)
+    
+    # # Open the camera
+    # cap = cv2.VideoCapture(0)
+
+    # # Check if the camera is opened successfully
+    # if not cap.isOpened():
+    #     print("Unable to open the camera")
+    #     exit()
+
+    # # Flag to check if the picture has been taken
+    # picture_taken = False
+    
+    # # Read and display frames from the camera
+    # while not picture_taken:
+    #     ret, frame = cap.read()
+
+    #     if not ret:
+    #         print("Error reading frame from the camera")
+    #         break
+
+    #     # Resize the frame to half of the screen width
+    #     new_width = screen_width // 2
+    #     new_height = frame.shape[0] * new_width // frame.shape[1]
+    #     frame = cv2.resize(frame, (new_width, new_height))
+
+    #     cv2.imshow("Live Feed", frame)
+
+    #     # Move the window to the left
+    #     cv2.moveWindow("Live Feed", 0, 0)
+
+    #     # Take a picture after 3 seconds
+    #     time.sleep(3)
+    #     cv2.imwrite('eval.jpg', frame)
+    #     picture_taken = True
+
+    # cap.release()
+    # cv2.destroyAllWindows()
+
     img = cv2.imread("eval.jpg")
     img = imutils.resize(img, width=960)
-    _, ArUco_corners = detect_ArUco_details(img)
     marking_img = np.copy(img)
-    corners = copy.deepcopy(ArUco_corners)
+    cv2.imshow("Marked Image", marking_img)
+    # Move the window to the left
+    cv2.moveWindow("Marked Image", 0, 0)
+    cv2.waitKey(500)  # delay for 500 milliseconds
+    _, corners = detect_ArUco_details(marking_img)
+    
     events = [
         [[corners[7][1][0], corners[21][0][1]], [corners[21][0][0], corners[7][1][1]-10]],
         [corners[28][1], corners[14][0]],
@@ -209,9 +246,14 @@ def task_4a_return():
         cv2.rectangle(marking_img, (offset_x, offset_y - text_height - 10), (offset_x + text_width, offset_y), (140, 133, 133), -1)
         cv2.putText(box, text, (offset_x, offset_y - 10), cv2.FONT_HERSHEY_SIMPLEX, scale, (0,255,0), thickness)
         identified_labels[letters[i]] = classconv[event]
+        cv2.imshow("Marked Image", marking_img)
+        
+        cv2.waitKey(500)  # delay for 500 milliseconds
+        
+        
         i+= 1
 
-    cv2.imshow("Original Image", marking_img)
+    cv2.imshow("Marked Image", marking_img)
 
     cv2.waitKey(0)
     cv2.destroyAllWindows()

@@ -10,15 +10,6 @@ def decrease_resolution(image, target_width, target_height):
     resized = cv2.resize(image, dim, interpolation=cv2.INTER_AREA)
     return resized
 
-def add_noise(image, noise_level):
-    row, col, _ = image.shape
-    mean = 0
-    var = noise_level
-    sigma = var ** 0.5
-    gauss = np.random.normal(mean, sigma, (row, col, 3))
-    noisy = np.clip(image + gauss, 0, 255).astype(np.uint8)
-    return noisy
-
 def process_images(input_folder, output_folder, target_width, target_height):
     # Create output folder if it doesn't exist
     if not os.path.exists(output_folder):
@@ -58,16 +49,6 @@ def process_images(input_folder, output_folder, target_width, target_height):
                     output = np.transpose(output[[2, 1, 0], :, :], (1, 2, 0))
                     output = (output * 255.0).round()
                     cv2.imwrite(output_path, output)
-                    
-                    # img_noised = cv2.imread(output_path)
-                    # # Non-Local Means Denoising
-                    # img_denoised = cv2.fastNlMeansDenoisingColored(img_noised, None, h=10, templateWindowSize=7, searchWindowSize=21)
-
-                    # cv2.imwrite(output_path, img_denoised)
- 
-                    
-
-
 
 train_input_folder = r"data\events\train"
 train_output_folder = r"data\events\train_scaled"
