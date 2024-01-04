@@ -161,6 +161,8 @@ def task_4a_return():
         nn.Linear(in_features=1280, out_features=5, bias=True),
     ).to(device)
     model.load_state_dict(torch.load('weights.tf'))
+    # model.load_state_dict(torch.load('w2.tf'))
+
     model.eval()
     
     image_transform = transforms.Compose([
