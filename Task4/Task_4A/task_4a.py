@@ -89,46 +89,46 @@ def task_4a_return():
     identified_labels = {}  
     
 ##############	ADD YOUR CODE HERE	##############
-    # # Get screen size
-    # user32 = ctypes.windll.user32
-    # screen_width = user32.GetSystemMetrics(0)
+    # Get screen size
+    user32 = ctypes.windll.user32
+    screen_width = user32.GetSystemMetrics(0)
     
-    # # Open the camera
-    # cap = cv2.VideoCapture(0)
+    # Open the camera
+    cap = cv2.VideoCapture(0)
 
-    # # Check if the camera is opened successfully
-    # if not cap.isOpened():
-    #     print("Unable to open the camera")
-    #     exit()
+    # Check if the camera is opened successfully
+    if not cap.isOpened():
+        print("Unable to open the camera")
+        exit()
 
-    # # Flag to check if the picture has been taken
-    # picture_taken = False
+    # Flag to check if the picture has been taken
+    picture_taken = False
     
-    # # Read and display frames from the camera
-    # while not picture_taken:
-    #     ret, frame = cap.read()
+    # Read and display frames from the camera
+    while not picture_taken:
+        ret, frame = cap.read()
 
-    #     if not ret:
-    #         print("Error reading frame from the camera")
-    #         break
+        if not ret:
+            print("Error reading frame from the camera")
+            break
 
-    #     # Resize the frame to half of the screen width
-    #     new_width = screen_width // 2
-    #     new_height = frame.shape[0] * new_width // frame.shape[1]
-    #     frame = cv2.resize(frame, (new_width, new_height))
+        # Resize the frame to half of the screen width
+        new_width = screen_width // 2
+        new_height = frame.shape[0] * new_width // frame.shape[1]
+        frame = cv2.resize(frame, (new_width, new_height))
 
-    #     cv2.imshow("Live Feed", frame)
+        cv2.imshow("Live Feed", frame)
 
-    #     # Move the window to the left
-    #     cv2.moveWindow("Live Feed", 0, 0)
+        # Move the window to the left
+        cv2.moveWindow("Live Feed", 0, 0)
 
-    #     # Take a picture after 3 seconds
-    #     time.sleep(3)
-    #     cv2.imwrite('eval.jpg', frame)
-    #     picture_taken = True
+        # Take a picture after 3 seconds
+        cv2.waitKey(500)
+        cv2.imwrite('eval.jpg', frame)
+        picture_taken = True
 
-    # cap.release()
-    # cv2.destroyAllWindows()
+    cap.release()
+    cv2.destroyAllWindows()
 
     img = cv2.imread("eval.jpg")
     img = imutils.resize(img, width=960)
@@ -162,6 +162,8 @@ def task_4a_return():
         nn.Linear(in_features=1280, out_features=5, bias=True),
     ).to(device)
     model.load_state_dict(torch.load('weights.tf'))
+    # model.load_state_dict(torch.load('w2.tf'))
+
     model.eval()
     
     image_transform = transforms.Compose([
