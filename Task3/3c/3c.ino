@@ -11,10 +11,10 @@ const unsigned long duration = 5000;  // 5 seconds in milliseconds
 #include <WiFi.h>
 
 // WiFi credentials
-const char* ssid = "Airtel_prit_0694";       //Enter your wifi hotspot ssid
-const char* password = "air73468";  //Enter your wifi hotspot password
+const char* ssid = "MITWPU-STAFF";       //Enter your wifi hotspot ssid
+const char* password = "a#b#c#d#2022";  //Enter your wifi hotspot password
 const uint16_t port = 8002;
-const char* host = "192.168.1.10";  //Enter the ip address of your laptop after connecting it to wifi hotspot
+const char* host = "10.2.35.192";  //Enter the ip address of your laptop after connecting it to wifi hotspot
 
 // External peripherals
 // int buzzerPin = 15;
