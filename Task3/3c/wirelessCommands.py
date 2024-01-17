@@ -55,6 +55,7 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         print(f"Connected by {addr}")
         while True:
             data = conn.recv(1024)
+            print(data)
             command = input("Enter command (1: Move Forward, 2: Move Backward, 5: Stop): ")
             conn.sendall(str.encode(str(command)))
             if command == "5":

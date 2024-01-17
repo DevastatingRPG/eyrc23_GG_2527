@@ -7,8 +7,8 @@ const uint16_t port = 8002;
 const char * host = "192.168.1.10";                   //Enter the ip address of your laptop after connecting it to wifi hotspot
 
 // External peripherals 
-int buzzerPin = 15;
-int redLed = 2;
+int buzzerPin = 19;
+int redLed = 21;
 #define in1 16
 #define in2 4
 #define in3 2
