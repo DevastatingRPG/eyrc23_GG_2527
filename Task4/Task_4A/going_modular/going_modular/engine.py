@@ -5,6 +5,7 @@ import torch
 
 from tqdm.auto import tqdm
 from typing import Dict, List, Tuple
+from copy import deepcopy
 
 def train_step(model: torch.nn.Module, 
                dataloader: torch.utils.data.DataLoader, 
@@ -120,9 +121,11 @@ def train(model: torch.nn.Module,
           train_dataloader: torch.utils.data.DataLoader, 
           test_dataloader: torch.utils.data.DataLoader, 
           optimizer: torch.optim.Optimizer,
+          scheduler: torch.optim.lr_scheduler._LRScheduler,
           loss_fn: torch.nn.Module,
           epochs: int,
-          device: torch.device) -> Dict[str, List]:
+          device: torch.device,
+          patience: int) -> Dict[str, List]:
     """Trains and tests a PyTorch model.
 
     Passes a target PyTorch models through train_step() and test_step()
@@ -160,9 +163,14 @@ def train(model: torch.nn.Module,
                "test_loss": [],
                "test_acc": []
     }
+
     
     # Make sure model on target device
     model.to(device)
+
+    best_loss = float('inf')
+    best_model_wts = deepcopy(model.state_dict())
+    no_improve_epochs = 0
 
     # Loop through training and testing steps for a number of epochs
     for epoch in tqdm(range(epochs)):
@@ -175,6 +183,20 @@ def train(model: torch.nn.Module,
           dataloader=test_dataloader,
           loss_fn=loss_fn,
           device=device)
+        
+        scheduler.step()
+
+        if test_loss < best_loss:
+            best_loss = test_loss
+            best_model_wts = deepcopy(model.state_dict())
+            no_improve_epochs = 0
+        else:
+            no_improve_epochs += 1
+
+        if no_improve_epochs >= patience:
+            print("Early stopping...")
+            model.load_state_dict(best_model_wts)
+            break
 
         # Print out what's happening
         print(

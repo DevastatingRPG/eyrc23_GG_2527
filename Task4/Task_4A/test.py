@@ -34,6 +34,8 @@ import ctypes
 from cv2 import aruco  
 import RRDBNet_arch as arch     
 from torchvision.models import efficientnet_v2_s
+from torchvision.models import resnet50
+import tensorflow as tf
 
 ##############################################################
 
@@ -130,9 +132,9 @@ def task_4a_return():
     cap.release()
     cv2.destroyAllWindows()
 
-    img = cv2.imread("evalpic.jpg")
-    img = imutils.resize(img, width=960)
-    img = cv2.rotate(img, cv2.ROTATE_90_CLOCKWISE)
+    img = cv2.imread("e1.jpg")
+    # img = imutils.resize(img, width=960)
+    # img = cv2.rotate(img, cv2.ROTATE_90_CLOCKWISE)
     marking_img = np.copy(img)
     cv2.imshow("Marked Image", marking_img)
     # Move the window to the left
@@ -157,15 +159,13 @@ def task_4a_return():
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    model = efficientnet_v2_s().to(device)
+    model = resnet50().to(device)
     model.classifier = torch.nn.Sequential(
         nn.Dropout(p=0.2, inplace=True),
         nn.Linear(in_features=1280, out_features=5, bias=True),
     ).to(device)
-    model.load_state_dict(torch.load('weights.tf'))
+    model.load_state_dict(torch.load('resnet.tf'))
     # model.load_state_dict(torch.load('w2.tf'))
-
-    model.eval()
     
     image_transform = transforms.Compose([
             transforms.ToTensor(),
