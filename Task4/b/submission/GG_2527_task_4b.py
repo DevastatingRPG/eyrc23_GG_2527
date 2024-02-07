@@ -107,7 +107,7 @@ def detect_ArUco_details(image):
 from task_2a import mark_ArUco_image
 
 # %%
-path = [23, 24, 22, 49, 34, 33, 35, 38, 37, 36, 8, 12, 9, 11, 29, 28, 27, 26, 25, 22, 24, 23]
+path = [23, 24, 22, 49, 50, 34, 33, 32, 35, 38, 37, 36, 8, 12, 9, 11, 29, 28, 27, 26, 25, 22, 24, 23]
 bot_marker = 69
 lat_lon = read_csv('lat_long.csv')
 tracker(23, lat_lon)
@@ -162,7 +162,7 @@ curr_node = 0
 ar_id = path[0]
 tracker(ar_id, lat_lon)
 # Read and display frames from the camera
-while curr_node < len(path) - 1:
+while True:
     ret, frame = cap.read()
     frame = cv2.rotate(frame, cv2.ROTATE_90_COUNTERCLOCKWISE)
     if not ret:
@@ -188,6 +188,8 @@ while curr_node < len(path) - 1:
             tracker(ar_id, lat_lon)
 
     except KeyError:
+        pass
+    except IndexError:
         pass
 
     cv2.imshow("Live Feed", frame)
