@@ -1,8 +1,8 @@
-For image classification in addition to old model we used super sampling library, and used thresholding of prediction values to filter blanks.
+For image classification in addition to old model we used thresholding of prediction values to filter blanks.
 
 For path planning we created a graph of arucos using networkX library in python, used to get shortest path of arucos. 
 
-Using coordinates of arucos from lat_long, i convert the path to set of instructions for the robot which is then periodically sent to the robot.
+Using coordinates of arucos from lat_long.csv, after rotating/adjusting by 15 degrees, i convert the path to set of instructions for the robot which is then periodically sent to the robot.
 
 For event detection, finding angle between closest aruco to event and robot was found and matched for a range only after which it tells robot to buzz.
 

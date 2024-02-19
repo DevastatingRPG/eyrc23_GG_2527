@@ -670,8 +670,8 @@ tracker(ar_id, lat_lon)
 while True:
     try:
         # events = task_4a_return("images/captured.jpg", [0.5, 0.5, 0.35, 0.25, 1])
+        # events = task_4a_return("images/captured.jpg", [0.45, 0.41, 0.3, 0.4, 0.45])
         events = task_4a_return("images/captured.jpg", [0.45, 0.41, 0.35, 0.4, 0.45])
-        # events = task_4a_return("images/captured.jpg", [0, 0, 0, 0, 0])
 
         # events = task_4a_return("images/captured.jpg", [1, 1, 1, 1, 1])
         print(events)
@@ -765,7 +765,7 @@ try:
                     norm_track(subPath)
                     print(received_data)
                     i += 1
-
+                
                 while True:
                     try:
                         norm_track(subPath)

@@ -1,24 +1,18 @@
 # %%
 import cv2 
-import os
 import csv
 import numpy as np 
 from cv2 import aruco
-import ctypes
 from torchvision import transforms
 from torchvision.models import efficientnet_v2_s  
 import time
-import imutils 
 import math
 import networkx as nx
 import torch
 import torch.nn as nn
 import socket
-import super_resolution
 import threading
-import traceback
 import pytesseract
-import queue
 
 # %%
 pytesseract.pytesseract.tesseract_cmd = r'B:\Software\Tesseract\tesseract.exe'
@@ -71,33 +65,20 @@ def mark_ArUco_image(image,ArUco_details_dict, ArUco_corners):
 # ### Image Classification
 
 # %%
-def task_4a_return(threshold):
+def task_4a_return(image_path, threshold):
     global cap
     identified_labels = {}  
     
-    # Get screen size
-    user32 = ctypes.windll.user32
-    screen_width = user32.GetSystemMetrics(0)
-    screen_height = user32.GetSystemMetrics(1)
-
     ret, frame = cap.read()
     display_frame = cv2.resize(frame, (960, 540))
 
     # Create a named window
     cv2.namedWindow("Live Feed", cv2.WINDOW_NORMAL)
 
-    new_width = screen_width // 2
-    new_height = frame.shape[0] * new_width // frame.shape[1]
-
-    # Set the window size to half of the screen size
-    # cv2.resizeWindow("Live Feed", new_width, new_height)
-
     # Flag to check if the picture has been taken
     picture_taken = False
-
     # Get start time
     start_time = time.time()
-    
     # Read and display frames from the camera
 
     while not picture_taken:
@@ -114,7 +95,7 @@ def task_4a_return(threshold):
         cv2.moveWindow("Live Feed", 0, 0)
 
         if time.time() - start_time >= 5:
-            cv2.imwrite('images/captured.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 100])
+            cv2.imwrite(image_path, frame, [cv2.IMWRITE_JPEG_QUALITY, 100])
             picture_taken = True
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
@@ -125,8 +106,10 @@ def task_4a_return(threshold):
 
     
     img = cv2.imread("images/captured.jpg")
-    os.remove("images/captured.jpg")
-
+    # os.remove(image_path)
+    cv2.imshow("Marked", img)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
     _, corners = detect_ArUco_details(img)
     # mark = mark_ArUco_image(img,  details, corners)
 
@@ -135,10 +118,10 @@ def task_4a_return(threshold):
     
     events = [
         [[corners[25][3][0], corners[21][0][1]], [corners[21][0][0], corners[7][1][1]-10]],
-        [[corners[31][3][0], corners[28][1][1]], [corners[29][0][0], corners[14][3][1]]],
+        [[corners[31][1][0], corners[28][1][1]], [corners[30][0][0], corners[14][3][1]]],
         [corners[31][1], [corners[30][0][0], corners[11][3][1]]], 
-        [[corners[25][0][0]+5, corners[34][0][1]], [corners[34][0][0], corners[25][0][1]]],    
-        [corners[54][2], corners[40][0]]   
+        [[corners[25][0][0], corners[34][0][1]], [corners[34][0][0], corners[11][3][1]]], 
+        [[corners[42][1][0], corners[52][1][1]], [corners[40][0][0], corners[10][3][1]-30]]   
     ]
 
     i=1
@@ -238,7 +221,7 @@ def task_4a_return(threshold):
         eventlist.append(crop)
         cv2.imwrite(temp, crop, [cv2.IMWRITE_JPEG_QUALITY, 100])
         result = cv2.imread(temp, cv2.IMREAD_COLOR)
-        result = super_resolution.cartoon_upsampling_4x(temp, temp )
+        # result = super_resolution.cartoon_upsampling_4x(temp, temp )
 
 
         with torch.inference_mode():
@@ -254,7 +237,7 @@ def task_4a_return(threshold):
         pred = torch.argmax(target_image_pred_probs, dim=1)
         class_names = ['combat', 'destroyedbuilding', 'fire', 'humanitarianaid', 'militaryvehicles']
 
-        print(max(target_image_pred_probs[0]))
+        print(target_image_pred_probs[0])
 
         if max(target_image_pred_probs[0]) < threshold[i]:
             event = "blank"
@@ -263,7 +246,7 @@ def task_4a_return(threshold):
             event = class_names[pred]
 
         offset_x = tl_adj[0] + x - 10
-        offset_y = tl_adj[1] + y - 10
+        offset_y = tl_adj[1] + y - 10    
 
         box = cv2.rectangle(marking_img, (offset_x, offset_y), (offset_x + w + 20, offset_y + h + 20), (0, 255, 0), 2)
         
@@ -287,7 +270,6 @@ def task_4a_return(threshold):
 
     cv2.waitKey(0)
     cv2.destroyAllWindows()
-
     return identified_labels
 
 
@@ -453,7 +435,7 @@ def atEvent(bot_marker, event):
     try:
         event = event_markers[event]
         angle, dir = event_angle(details[event][0], details[bot_marker][0])
-        if 27 <= angle <= 60 and distance(details[event][0], details[bot_marker][0]) < 200 and dir == 'l':
+        if (19 <= angle <= 71) and distance(details[event][0], details[bot_marker][0]) < 150 and dir == 'l':
             return True
         else:
             return False
@@ -500,9 +482,10 @@ def command_gen(coords, paths):
             elif i<len(path)-2:
                 ang, dir = calculate_angle(coords[str(path[i])], coords[str(path[i+1])], coords[str(path[i+2])])
                 result, traversed = isNode(path[i+1], traversed)
-                if 140 >= ang >= 45:
+                if (150 >= ang >= 45) and result:
                     traversed = []
-                    c.append(dir)
+                    if not (path[i] == 43 and path[i+2] == 8):
+                        c.append(dir)
                     if path[i+2] == 32 and path[i+1] == 19:
                         c.append(1)
                     
@@ -516,8 +499,13 @@ def command_gen(coords, paths):
         buffer = path[-2]
         commands.append(c)
     return commands
-    
 
+# %%
+def get_element(lst, index):
+    try:
+        return lst[index]
+    except IndexError:
+        return None
 
 # %% [markdown]
 # ### Geo Locating
@@ -574,6 +562,7 @@ def norm_track(path):
     global bot_marker
     global lat_lon
     global frame
+    global ar_id
     
     details, _ = detect_ArUco_details(frame)
     try:
@@ -628,53 +617,34 @@ def display():
     
     cv2.destroyAllWindows()
 
-# %%
-def alt_track():
-    global graph
-    global frame
-    global bot_marker
-    global lat_lon
-
-    ar_id = 23
-    tracker(ar_id, lat_lon)
-
-    while True:
-        details, _ = detect_ArUco_details(frame)
-
-        try:
-            for marker in graph.adj[ar_id]:
-                if distance(details[bot_marker][0], details[ar_id][0]) > distance(details[bot_marker][0], details[marker][0]):
-                    ar_id = marker
-                    tracker(ar_id, lat_lon)
-
-        except KeyError:
-            pass
-        except IndexError:
-            break
-
 # %% [markdown]
 # ### MAIN
 
 # %%
-# Open the camera
-cap = cv2.VideoCapture(0)
-# cap = cv2.VideoCapture(1, cv2.CAP_DSHOW)
+torch.manual_seed(42)
+torch.cuda.manual_seed(42)
+
+# %%
+if 'cap' not in globals():
+    # Open the camera
+    cap = cv2.VideoCapture(0)
+    # cap = cv2.VideoCapture(1, cv2.CAP_DSHOW)
 
 
-cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
-cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
 
-# Try to set exposure, white balance, and other properties
-cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, 3)  # 0.25 means "manual exposure, manual iris"
-cap.set(cv2.CAP_PROP_AUTO_WB, 1)  # 0 means "disable auto white balance"
+    # Try to set exposure, white balance, and other properties
+    cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, 3)  # 0.25 means "manual exposure, manual iris"
+    cap.set(cv2.CAP_PROP_AUTO_WB, 1)  # 0 means "disable auto white balance"
 
-cap.set(cv2.CAP_PROP_SATURATION, 75)
-cap.set(cv2.CAP_PROP_FPS, 30)
+    cap.set(cv2.CAP_PROP_SATURATION, 75)
+    cap.set(cv2.CAP_PROP_FPS, 30)
 
-# Check if the camera is opened successfully
-if not cap.isOpened():
-    print("Unable to open the camera")
-    exit()
+    # Check if the camera is opened successfully
+    if not cap.isOpened():
+        print("Unable to open the camera")
+        exit()
 
 # %%
 event_markers = {
@@ -692,13 +662,18 @@ order = ['Fire', 'Destroyed buildings', 'Humanitarian Aid and rehabilitation', '
 coords = adjust_coordinates('lat_long.csv', -15)
 graph = create_graph(coords)
 lat_lon = read_csv('lat_long.csv')
-tracker(23, lat_lon)
+ar_id = 23
+tracker(ar_id, lat_lon)
 
 
 # %%
 while True:
     try:
-        events = task_4a_return([0.5, 1, 0.4, 0.35, 1])
+        # events = task_4a_return("images/captured.jpg", [0.5, 0.5, 0.35, 0.25, 1])
+        events = task_4a_return("images/captured.jpg", [0.45, 0.41, 0.35, 0.4, 0.45])
+        # events = task_4a_return("images/captured.jpg", [0, 0, 0, 0, 0])
+
+        # events = task_4a_return("images/captured.jpg", [1, 1, 1, 1, 1])
         print(events)
         ask = input("OK ? : ")
         if ask == 'y':
@@ -713,6 +688,11 @@ command_list = command_gen(coords, path)
 
 
 # %%
+# priority_list = list('EBADC')
+# path = path_gen(graph, priority_list)
+# command_list = command_gen(coords, path)
+
+# %%
 esp32_ip = ""  # Change this to the IP address of your ESP32
 esp32_port = 8002
 
@@ -722,72 +702,92 @@ received_data = None
 display_thread = threading.Thread(target=display, args=())
 display_thread.start()
 
-with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-    s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    s.bind((esp32_ip, 8002))
-    s.listen()
-    conn, addr = s.accept()
-    with conn:
-        print(f"Connected by {addr}")
-        # Create a new thread for receiving data
-        receive_thread = threading.Thread(target=receive_data, args=(conn,))
-        receive_thread.start()
+try:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        s.bind((esp32_ip, 8002))
+        s.listen()
+        conn, addr = s.accept()
+        with conn:
+            print(f"Connected by {addr}")
+            # Create a new thread for receiving data
+            receive_thread = threading.Thread(target=receive_data, args=(conn,))
+            receive_thread.start()
 
-        command = input("Enter command (1: Move Forward): ")
-        print("hallo")
-        print(command_list)
-        for j, (sub, subPath) in enumerate(zip(command_list, path)):
-            # Create a stop event
-            curr_node = 0
-            ar_id = subPath[0]
-            tracker(ar_id, lat_lon)
+            command = input("Enter command (1: Move Forward): ")
+            print("hallo")
+            print(command_list)
+            for j, (sub, subPath) in enumerate(zip(command_list, path)):
+                # Create a stop event
+                curr_node = 0
+                ar_id = subPath[0]
+                tracker(ar_id, lat_lon)
 
-            norm_track(subPath)
-            
-            for i, subsub in enumerate(sub):
                 norm_track(subPath)
-                received_data = None
-                if i == len(sub) - 1:
-                    if j == len(command_list) - 1:
-                        if subsub == 3:
-                            conn.sendall(str.encode(str(6)))
-                            print(f"command: 6")
-                        elif subsub == 1:
-                            conn.sendall(str.encode(str(9)))
-                            print(f"command: 9")
+                i = 0
+                while i < len(sub):
+                # for i in enumerate(sub):
+                    subsub = sub[i]
+                    norm_track(subPath)
+                    received_data = None
+                    if i == len(sub) - 1:
+                        if get_element(priority_list, j) == 'E':
+                            conn.sendall(str.encode(str(11)))
+                            print(f"command: 11")
+                        elif j == len(command_list) - 1:
+                            if subsub == 3:
+                                conn.sendall(str.encode(str(6)))
+                                print(f"command: 6")
+                            elif subsub == 1:
+                                conn.sendall(str.encode(str(9)))
+                                print(f"command: 9")
+                        else:
+                            conn.sendall(str.encode(str(conversion[subsub])))
+                            print(f"command: {conversion[subsub]}")
+                        if subsub != 1:
+                            while received_data != "turned":
+                                norm_track(subPath)
+                                continue
+                        print(f"command processed: {conversion[subsub]}")
                     else:
-                        conn.sendall(str.encode(str(conversion[subsub])))
-                        print(f"command: {conversion[subsub]}")
-                    while received_data != "turned":
+                        if get_element(priority_list, j-1) == 'E' and i==0:
+                            conn.sendall(str.encode(str(12)))
+                            print(f"command: 12")
+                        else:
+                            conn.sendall(str.encode(str(subsub)))
+                            print(f"command: {subsub}")
+                        while received_data != "node" and not (ar_id == 51 and get_element(priority_list, j) == 'E'):
+                            norm_track(subPath)
+                            continue
+                        if (ar_id in [11, 29, 9]) and get_element(priority_list, j) == 'B':
+                            i = len(sub) - 2
+                        print(f"command processed: {subsub}")
+                    norm_track(subPath)
+                    print(received_data)
+                    i += 1
+
+                while True:
+                    try:
+                        norm_track(subPath)
+                        if atEvent(bot_marker, priority_list[j]):
+                            break
+                    except IndexError:
                         norm_track(subPath)
                         continue
-                    print(f"command processed: {conversion[subsub]}")
-                else:
-                    conn.sendall(str.encode(str(subsub)))
-                    print(f"command: {subsub}")
-                    while received_data != "node":
-                        norm_track(subPath)
-                        continue
-                    print(f"command processed: {subsub}")
+
                 norm_track(subPath)
-                print(received_data)
+                conn.sendall(str.encode(str(5)))
+                print(f"Sent: 5")
+                while received_data != "buzz":
+                    norm_track(subPath)
+                    continue
+                norm_track(subPath)
+                print("done with one event")
             
-            while not atEvent(bot_marker, priority_list[j]):
-                norm_track(subPath)
-                continue
+            print("helped everyone")
 
-            norm_track(subPath)
-            conn.sendall(str.encode(str(5)))
-            print(f"Sent: 5")
-            while received_data != "buzz":
-                norm_track(subPath)
-                continue
-            norm_track(subPath)
-            print("done with one event")
-        
-        print("helped everyone")
-
-# %%
-
+except KeyboardInterrupt:
+    print("Keyboard Interrupt")
+    cv2.destroyAllWindows()
 
 
