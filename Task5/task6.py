@@ -22,6 +22,7 @@ import networkx as nx
 import torch
 import torch.nn as nn
 import socket
+# import super_resolution
 import threading
 
 
@@ -132,7 +133,7 @@ def predictEvent(image, image_transform, model, device, threshold):
 * Example Call: markImage(marking_img, event, boxTL, boxBR)
 '''
 
-def markImage(image, event: str, tl: list, br: list):  
+def markImage(image, event, tl, br):  
 
     box = cv2.rectangle(image, tl, br, (0, 255, 0), 2)
     
@@ -348,8 +349,8 @@ def classifyArena(cap, image_path: str, threshold: list):
 
 
 # %%
-def sortLabels(identified_labels: dict):
-    order = ['Fire', 'Destroyed buildings', 'Humanitarian Aid and rehabilitation', 'Military Vehicles', 'Combat']
+def sortLabels(identified_labels):
+    global order
     result = []
     for target in ['A', 'B', 'C', 'D', 'E']:
         inserted = 0
@@ -552,29 +553,29 @@ def event_angle(coord1, botcoord):
   atEvent(bot_marker, event)
 '''
 
-def atEvent(bot_marker, event, frame_queue, event_markers, oldDetails):
-  if not frame_queue.empty():
-    frame = frame_queue.get()
-    details, _ = detect_ArUco_details(frame)
+def atEvent(bot_marker, event, frame, event_markers, received_data):
+  details, _ = detect_ArUco_details(frame)
 
-    angles = {'A': [21, 37, 179], 'B': [19, 31, 220], 'C': [20, 43, 192], 'D': [7, 79, 150], 'E': [29, 70, 250]}
-    
-    try:
+  angles = {'A': [21, 37, 200], 'B': [19, 31, 150], 'C': [22, 43, 150], 'D': [7, 79, 150], 'E': [29, 53, 150]}
+  
+  try:
+    if event != 'F':
       event_ar = event_markers[event]
-      angle, dir = event_angle(oldDetails[event_ar][0], details[bot_marker][0])
-      if (angles[event][0] <= angle <= angles[event][1] and 
-          distance(oldDetails[event_ar][0], details[bot_marker][0]) < angles[event][2] and dir == 'l'):
+      angle, dir = event_angle(details[event_ar][0], details[bot_marker][0])
+      if angles[event][0] <= angle <= angles[event][1] and distance(details[event_ar][0], details[bot_marker][0]) < 150 and dir == 'l':
           return True
       else:
           return False
-
-        
-    except KeyError:
-        return False
-    except IndexError:
-        return False
-  else:
-     return False
+    else:
+      if received_data == 'positive':
+          return True
+      else:
+          return False
+      
+  except KeyError:
+      return False
+  except IndexError:
+      return False
     
 
 # %%
@@ -601,7 +602,7 @@ def path_gen(graph, start, event):
   commad_lsit, ar_node_list, oldbuffer = command_gen(coords, path, oldbuffer)
 '''
 
-def command_gen(coords, path: list, oldbuffer: int):
+def command_gen(coords, path, oldbuffer):
     # 1 is for FORWARD till node detection
     # 2 is for RIGHT turn then FORWARD till node detection
     # 3 is for LEFT turn then FORWARD till node detection
@@ -664,7 +665,7 @@ def command_gen(coords, path: list, oldbuffer: int):
     return c, a, oldbuffer
 
 # %%
-def get_element(lst: list, index: int):
+def get_element(lst, index):
     try:
         return lst[index]
     except IndexError:
@@ -674,7 +675,7 @@ def get_element(lst: list, index: int):
 # ### Geo Locating
 
 # %%
-def read_csv(csv_name: str):
+def read_csv(csv_name):
     lat_lon = {}
 
     # open csv file (lat_lon.csv)
@@ -691,7 +692,7 @@ def read_csv(csv_name: str):
     return lat_lon
 
 # %%
-def write_csv(loc, csv_name: str):
+def write_csv(loc, csv_name):
 
     # open csv (csv_name)
     # write column names "lat", "lon"
@@ -705,7 +706,7 @@ def write_csv(loc, csv_name: str):
             csv_writer.writerow([lat, lon])
 
 # %%
-def tracker(ar_id: int, lat_lon: dict):
+def tracker(ar_id, lat_lon):
 
     # find the lat, lon associated with ar_id (aruco id)
     # write these lat, lon to "live_data.csv"
@@ -720,14 +721,14 @@ def tracker(ar_id: int, lat_lon: dict):
         write_csv({ar_id: coordinate}, "live_data.csv")
 
 # %%
-def norm_track(path: list, segments: list, curr_node: int, ar_id: int, ind: int, traversed: list, frame_queue: Queue, oldDetails):
+def norm_track(path: list, segments: list, curr_node: int, ar_id: int, ind: int, frame, traversed: list, frame_queue):
 
     if not frame_queue.empty():
         frame = frame_queue.get()
 
         details, _ = detect_ArUco_details(frame)
         try:
-            if distance(details[bot_marker][0], oldDetails[path[curr_node+1]][0]) < distance(details[bot_marker][0], oldDetails[path[curr_node]][0]):
+            if distance(details[bot_marker][0], details[path[curr_node+1]][0]) < distance(details[bot_marker][0], details[path[curr_node]][0]):
                 curr_node += 1
                 ar_id = path[curr_node]
                 tracker(ar_id, lat_lon)
@@ -750,44 +751,23 @@ def norm_track(path: list, segments: list, curr_node: int, ar_id: int, ind: int,
 # ### THREADING
 
 # %%
-'''
-* Function Name: receive_data
-* Input: 
-  - conn: Connection object
-  - received_queue: Queue of messages received from esp32
-* Output: 
-  - None
-* Logic: 
-  - Thread that constantly receives data from robot
-* Example Call: receive_data(conn, received_queue)
-'''
-
-def receive_data(conn, received_queue: Queue):
-    # global received_data
+# Function to handle data receiving
+def receive_data(conn):
+    global received_data
     while True:
         try:
             received_data = conn.recv(1024)
             received_data = received_data.decode('utf-8').strip()
-            received_queue.put(received_data)
         except ConnectionAbortedError:
             pass
         except OSError:
             pass
 
 # %%
-'''
-* Function Name: display
-* Input: 
-  - cap: Camera object
-  - received_queue: Queue to store frames
-* Output: 
-  - None
-* Logic: 
-  - Thread that constantly Displays and Puts frames in queue
-* Example Call: display(cap, frame_queue)
-'''
-
-def display(cap, frame_queue: Queue):    
+# Function to display Live Feed
+def display(cap, frame_queue):
+    global frame
+    
     while True:
         _, frame = cap.read()  
         display_frame = cv2.resize(frame, (960, 540))
@@ -810,6 +790,9 @@ def display(cap, frame_queue: Queue):
 # %%
 torch.manual_seed(42)
 torch.cuda.manual_seed(42)
+
+# %%
+# afdaf
 
 # %%
 if 'cap' not in globals():
@@ -848,6 +831,7 @@ event_markers = {
 conversion = {2: 10, 3: 12}
 skip_test = lambda x, y: (x in (1, 7) and y in (1, 7))
 bot_marker = 100
+order = ['Fire', 'Destroyed buildings', 'Humanitarian Aid and rehabilitation', 'Military Vehicles', 'Combat']
 
 # %%
 coords = adjust_coordinates('lat_long.csv', -15)
@@ -884,12 +868,31 @@ priority_list.append('F')
 
 
 # %%
-while True:
-    ret, frame = cap.read()
-    oldDetails, oldCorners = detect_ArUco_details(frame)
-    if len(oldDetails) == 51 and 100 not in oldDetails.keys():
-        break
+def test(event):
+    try:
+        event = event_markers[event]
+        _, frame = cap.read()
+        details, _ = detect_ArUco_details(frame)
+        ang, dir = event_angle(details[event][0], details[bot_marker][0])
+        dist = distance(details[event][0], details[bot_marker][0])
+        # print(ang, dist)
+        cv2.imshow("Live Feed", frame)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+    except IndexError:
+        pass
+    
 
+
+# %%
+# E 34 48
+# D
+# C 27 38
+# B 23 26 150
+# A 26 32
+
+# %%
+# priority_list = list('CEABF')
 
 # %%
 esp32_ip = ""  # Change this to the IP address of your ESP32
@@ -899,7 +902,6 @@ esp32_port = 8002
 received_data = None
 traversed = []
 
-received_queue = Queue()
 frame_queue = Queue()
 display_thread = threading.Thread(target=display, args=(cap, frame_queue))
 display_thread.start()
@@ -915,7 +917,7 @@ try:
         with conn:
             print(f"Connected by {addr}")
             # Create a new thread for receiving data
-            receive_thread = threading.Thread(target=receive_data, args=(conn, received_queue))
+            receive_thread = threading.Thread(target=receive_data, args=(conn,))
             receive_thread.start()
 
             command = input("Enter command (1: Start): ")
@@ -946,37 +948,28 @@ try:
                 traversed = []
                 tracker(ar_id, lat_lon)
 
-                curr_node, ar_id, ind = norm_track(subPath, subSegments, curr_node, ar_id, ind, traversed, frame_queue, oldDetails)
+                curr_node, ar_id, ind = norm_track(subPath, subSegments, curr_node, ar_id, ind, frame, traversed, frame_queue)
 
                 conn.sendall(str.encode(str(subCommands[0])))
                 # print(f"Command Sent : {subCommands[0]}")
                 i = 1
 
-                while not atEvent(bot_marker, event, frame_queue, event_markers, oldDetails):
-                    curr_node, ar_id, ind = norm_track(subPath, subSegments, curr_node, ar_id, ind, traversed, frame_queue, oldDetails)
+                while not atEvent(bot_marker, event, frame, event_markers, received_data):
+                    curr_node, ar_id, ind = norm_track(subPath, subSegments, curr_node, ar_id, ind, frame, traversed, frame_queue)
     
                     result, traversed = isNode(ar_id, traversed)
                     
-                    # if ind+2 > i and not result and (
-                    #     priority_list[j-1] in ['D', 'E'] and event in ['D', 'A', 'B', 'C']
-                    # ) and i not in [0, 1]:
-                    #     # print("Replaced i : ", ind+2, i)                          
-                    #     i = min(ind + 2, len(subCommands)-1)
-
-                    if not result and (
+                    if ind+2 > i and not result and (
                         priority_list[j-1] in ['D', 'E'] and event in ['D', 'A', 'B', 'C']
-                    ) and i not in [0, 1]:
+                    ):
                         # print("Replaced i : ", ind+2, i)                          
                         i = min(ind + 2, len(subCommands)-1)                           
 
-                    if not received_queue.empty():
-                        received_data = received_queue.get()
-
                     if (
                         (received_data == 'node') or 
-                        (event == 'E' and ar_id in [51, 10])
-                        ) and i < len(subCommands):  
-
+                        (event == 'E' and ar_id in [51, 10]) or 
+                        ((priority_list[j-1]) and ar_id in [51, 10]) or 
+                        (event == 'B' and ar_id == 19)) and i < len(subCommands):  
                         try:                     
                             conn.sendall(str.encode(str(subCommands[i])))
                             # print(f"Command Processed : {subCommands[i-1]}")
@@ -987,14 +980,13 @@ try:
                             pass
                     
                     if received_data == 'positive':
-                        print("Done")
                         break
-                else:
+    
+                if event != 'F':
                     conn.sendall(str.encode(str(5)))
                     # print(f"Command Sent: 5")
                     while received_data != "buzz":
-                        if not received_queue.empty():
-                            received_data = received_queue.get()
+                        continue
                     # print("Command Processed : 5")
                     # print("done with one event")
             

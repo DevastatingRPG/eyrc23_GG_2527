@@ -552,7 +552,7 @@ def event_angle(coord1, botcoord):
   atEvent(bot_marker, event)
 '''
 
-def atEvent(bot_marker, event, frame_queue, event_markers, oldDetails):
+def atEvent(bot_marker, event, frame_queue, event_markers):
   if not frame_queue.empty():
     frame = frame_queue.get()
     details, _ = detect_ArUco_details(frame)
@@ -561,9 +561,9 @@ def atEvent(bot_marker, event, frame_queue, event_markers, oldDetails):
     
     try:
       event_ar = event_markers[event]
-      angle, dir = event_angle(oldDetails[event_ar][0], details[bot_marker][0])
+      angle, dir = event_angle(details[event_ar][0], details[bot_marker][0])
       if (angles[event][0] <= angle <= angles[event][1] and 
-          distance(oldDetails[event_ar][0], details[bot_marker][0]) < angles[event][2] and dir == 'l'):
+          distance(details[event_ar][0], details[bot_marker][0]) < angles[event][2] and dir == 'l'):
           return True
       else:
           return False
@@ -720,14 +720,14 @@ def tracker(ar_id: int, lat_lon: dict):
         write_csv({ar_id: coordinate}, "live_data.csv")
 
 # %%
-def norm_track(path: list, segments: list, curr_node: int, ar_id: int, ind: int, traversed: list, frame_queue: Queue, oldDetails):
+def norm_track(path: list, segments: list, curr_node: int, ar_id: int, ind: int, traversed: list, frame_queue: Queue):
 
     if not frame_queue.empty():
         frame = frame_queue.get()
 
         details, _ = detect_ArUco_details(frame)
         try:
-            if distance(details[bot_marker][0], oldDetails[path[curr_node+1]][0]) < distance(details[bot_marker][0], oldDetails[path[curr_node]][0]):
+            if distance(details[bot_marker][0], details[path[curr_node+1]][0]) < distance(details[bot_marker][0], details[path[curr_node]][0]):
                 curr_node += 1
                 ar_id = path[curr_node]
                 tracker(ar_id, lat_lon)
@@ -750,18 +750,7 @@ def norm_track(path: list, segments: list, curr_node: int, ar_id: int, ind: int,
 # ### THREADING
 
 # %%
-'''
-* Function Name: receive_data
-* Input: 
-  - conn: Connection object
-  - received_queue: Queue of messages received from esp32
-* Output: 
-  - None
-* Logic: 
-  - Thread that constantly receives data from robot
-* Example Call: receive_data(conn, received_queue)
-'''
-
+# Function to handle data receiving
 def receive_data(conn, received_queue: Queue):
     # global received_data
     while True:
@@ -775,18 +764,7 @@ def receive_data(conn, received_queue: Queue):
             pass
 
 # %%
-'''
-* Function Name: display
-* Input: 
-  - cap: Camera object
-  - received_queue: Queue to store frames
-* Output: 
-  - None
-* Logic: 
-  - Thread that constantly Displays and Puts frames in queue
-* Example Call: display(cap, frame_queue)
-'''
-
+# Function to display Live Feed
 def display(cap, frame_queue: Queue):    
     while True:
         _, frame = cap.read()  
@@ -810,6 +788,9 @@ def display(cap, frame_queue: Queue):
 # %%
 torch.manual_seed(42)
 torch.cuda.manual_seed(42)
+
+# %%
+# afdaf
 
 # %%
 if 'cap' not in globals():
@@ -884,12 +865,34 @@ priority_list.append('F')
 
 
 # %%
-while True:
-    ret, frame = cap.read()
-    oldDetails, oldCorners = detect_ArUco_details(frame)
-    if len(oldDetails) == 51 and 100 not in oldDetails.keys():
-        break
+# priority_list = list("CEABF")
 
+# %%
+def test(event):
+    try:
+        event = event_markers[event]
+        _, frame = cap.read()
+        details, _ = detect_ArUco_details(frame)
+        ang, dir = event_angle(details[event][0], details[bot_marker][0])
+        dist = distance(details[event][0], details[bot_marker][0])
+        # print(ang, dist)
+        cv2.imshow("Live Feed", frame)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+    except IndexError:
+        pass
+    
+
+
+# %%
+# E 34 48
+# D
+# C 27 38
+# B 23 26 150
+# A 26 32
+
+# %%
+# priority_list = list('CEABF')
 
 # %%
 esp32_ip = ""  # Change this to the IP address of your ESP32
@@ -946,14 +949,14 @@ try:
                 traversed = []
                 tracker(ar_id, lat_lon)
 
-                curr_node, ar_id, ind = norm_track(subPath, subSegments, curr_node, ar_id, ind, traversed, frame_queue, oldDetails)
+                curr_node, ar_id, ind = norm_track(subPath, subSegments, curr_node, ar_id, ind, traversed, frame_queue)
 
                 conn.sendall(str.encode(str(subCommands[0])))
                 # print(f"Command Sent : {subCommands[0]}")
                 i = 1
 
-                while not atEvent(bot_marker, event, frame_queue, event_markers, oldDetails):
-                    curr_node, ar_id, ind = norm_track(subPath, subSegments, curr_node, ar_id, ind, traversed, frame_queue, oldDetails)
+                while not atEvent(bot_marker, event, frame_queue, event_markers):
+                    curr_node, ar_id, ind = norm_track(subPath, subSegments, curr_node, ar_id, ind, traversed, frame_queue)
     
                     result, traversed = isNode(ar_id, traversed)
                     
