@@ -4,8 +4,11 @@
 * Author List : Shubham Sarkar, Aditya Gajjar, Sanskruti R. Ninawe, Vijit Ayush Pandey
 * Filename: Task_6.py
 * Theme: GeoGuide (GG)
-* Functions: <Comma separated list of Functions defined in this file>
-* Global Variables: <List of global variables defined in this file, none if no global * variables>
+* Functions: detect_ArUco_details, load_model, preprocess, getEvent, predictEvent, markImage, classifyArena, sortLabels, 
+    distance, rotate_coordinates, adjust_coordinates, create_graph, isNode, calculate_angle, event_angle, atEvent, path_gen, 
+    command_gen, get_element, read_csv, write_csv, tracker, norm_track, receive_data, display 
+* Global Variables: cap, event_markers, bot_marker, coords, graph, lat_lon, ar_id, conversion, skip_test, priority_list, 
+    oldDetails, oldCorners, received_queue, frame_queue, curr_node, oldBuffer, traversed, received_data
 '''
 
 # %%
@@ -29,6 +32,20 @@ import threading
 # ### Aruco Functions
 
 # %%
+'''
+*Function Name: detect_ArUco_details
+*Input: 
+  - image: The image in which ArUco markers will be detected
+*Output: 
+  - ArUco_details_dict: Dictionary, contains marker IDs as keys and their details as values
+  - ArUco_corners: Dictionary, contains marker IDs as keys and their corner coordinates as values
+*Logic: 
+  - Detects ArUco markers in the input image and extracts their details
+  - Details include marker ID, center coordinates, and corner coordinates
+*Example Call: 
+  details, corners = detect_ArUco_details(img)
+'''
+
 def detect_ArUco_details(image): 
     ArUco_details_dict = {}
     ArUco_corners = {}
@@ -56,6 +73,14 @@ def detect_ArUco_details(image):
 # ### Image Classification
 
 # %%
+''' 
+* Function Name: load_model
+* Input: weight_path (of model), device (cpu or cuda)
+* Output: Loaded model
+* Logic: Loads model acc to weight path and device
+* Example Call: model = load_model('weights.tf', 'cuda')
+'''
+
 def load_model(weight_path: str, device: str):
     model = efficientnet_v2_s()
     model.classifier = torch.nn.Sequential(
@@ -68,6 +93,14 @@ def load_model(weight_path: str, device: str):
     return model
 
 # %%
+''' 
+* Function Name: preprocess
+* Input: Original Image
+* Output: Preprocessed image for contour detection
+* Logic: applys various filters required for contour detection
+* Example Call: img = preprocess(img)
+'''
+
 def preprocess(image):
     # Perform morphological opening
     kernel = np.ones((5,5),np.uint8)
@@ -312,8 +345,8 @@ def classifyArena(cap, image_path: str, threshold: list):
         "fire": "Fire", "destroyed_buildings": "Destroyed buildings", 
         "combat": "Combat", "humanitarian_aid": "Humanitarian Aid and rehabilitation", "military_vehicles": "Military Vehicles",
         "blank": "Blank"}
-    fixed = {'A': "humanitarian_aid", 'B': "combat", 'C': "fire", 'D': "blank", 'E': "destroyed_buildings"}
-    identified_labels = {'A': "Humanitarian Aid and rehabilitation", 'B': "Combat", 'C': "Fire", 'D': "Blank", 'E': "Destroyed buildings"}
+    fixed = {'A': "military_vehicles", 'B': "destroyed_buildings", 'C': "combat", 'D': "fire", 'E': "fire"}
+    identified_labels = {'A': "Military Vehicles", 'B': "Destroyed buildings", 'C': "Combat", 'D': "Fire", 'E': "Fire"}
     # New End
 
     for i, (tl, br) in enumerate(events):
@@ -370,6 +403,18 @@ def sortLabels(identified_labels: dict):
 # ### Path Creation
 
 # %%
+'''
+*Function Name: distance
+*Input: 
+  - ar1: Coordinates (x, y) of the first point
+  - ar2: Coordinates (x, y) of the second point
+*Output: 
+  - dist: Float, Euclidean distance between the two points
+*Logic: 
+  - Calculates the Euclidean distance between two points using their coordinates
+*Example Call: 
+  new_dist = distance(details[bot_marker][0], details[marker][0])
+'''
 def distance(ar1, ar2):
     c1 = ar1
     x1, y1 = c1[0], c1[1]
@@ -423,6 +468,18 @@ def adjust_coordinates(csv_name: str, theta_degrees: int):
     return adjusted_coordinates
 
 # %%
+'''
+*Function Name: create_graph
+*Input: 
+  - coords: Dictionary, contains coordinates of nodes (format: {'node_id': (x, y)})
+*Output: 
+  - graph: NetworkX Graph, represents the connectivity of nodes with weighted edges
+*Logic: 
+  - Creates a graph representing the connectivity of nodes based on the provided links
+*Example Call: 
+  graph = create_graph(coords)
+'''
+
 def create_graph(coords: dict):
     links = (
         (23, 24), (24, 22), (22, 49), (49, 50), (50, 51), (51, 52), (52, 53), (53, 54), (54, 48), (48, 47), (47, 46), 
@@ -460,6 +517,22 @@ def isNode(node, traversed):
     return False, traversed
 
 # %%
+'''
+*Function Name: calculate_angle
+*Input: 
+  - coord1: Tuple, coordinates (x, y) of the first point
+  - coord2: Tuple, coordinates (x, y) of the second point
+  - coord3: Tuple, coordinates (x, y) of the third point
+*Output: 
+  - angle: Float, angle in degrees between the three points
+  - direction: Integer or String, direction ('2' for right, '3' for left, 'C' for colinear)
+*Logic: 
+  - Calculates the angle between three points using the law of cosines
+  - Determines the direction based on the cross product of vectors
+*Example Call: 
+  ang, dir = calculate_angle(coords[str(path[i-1])], coords[str(path[i])], coords[str(path[i+1])])
+'''
+
 def calculate_angle(coord1, coord2, coord3):
     # Calculate the distances between the points
     a = math.sqrt((coord2[0] - coord1[0])**2 + (coord2[1] - coord1[1])**2)
@@ -531,13 +604,6 @@ def event_angle(coord1, botcoord):
     return angle_degrees, side
 
 # %%
-# E 34 48
-# D
-# C 27 38
-# B 23 26 150
-# A 26 32
-
-# %%
 '''
 * Function Name: atEvent
 * Input: 
@@ -552,18 +618,18 @@ def event_angle(coord1, botcoord):
   atEvent(bot_marker, event)
 '''
 
-def atEvent(bot_marker, event, frame_queue, event_markers):
+def atEvent(bot_marker, event, frame_queue, event_markers, oldDetails):
   if not frame_queue.empty():
     frame = frame_queue.get()
     details, _ = detect_ArUco_details(frame)
 
-    angles = {'A': [21, 37, 179], 'B': [19, 31, 220], 'C': [20, 43, 192], 'D': [7, 79, 150], 'E': [29, 70, 250]}
+    angles = {'A': [21, 77, 179], 'B': [17, 31, 220], 'C': [17.4896, 43, 192], 'D': [7, 79, 150], 'E': [0, 70, 150]}
     
     try:
       event_ar = event_markers[event]
-      angle, dir = event_angle(details[event_ar][0], details[bot_marker][0])
+      angle, dir = event_angle(oldDetails[event_ar][0], details[bot_marker][0])
       if (angles[event][0] <= angle <= angles[event][1] and 
-          distance(details[event_ar][0], details[bot_marker][0]) < angles[event][2] and dir == 'l'):
+          distance(oldDetails[event_ar][0], details[bot_marker][0]) < angles[event][2] and dir == 'l'):
           return True
       else:
           return False
@@ -578,6 +644,20 @@ def atEvent(bot_marker, event, frame_queue, event_markers):
     
 
 # %%
+'''
+*Function Name: path_gen
+*Input: 
+  - graph: NetworkX Graph, represents the connectivity of nodes with weighted edges
+  - start: Integer, ID of the starting point
+  - event: String, specifies the event or target node
+*Output: 
+  - path: List, contains the nodes in the shortest path from start to the specified event
+*Logic: 
+  - Generates the shortest path in the graph from the start to the specified event
+*Example Call: 
+  path = path_gen(graph, 23, 'E')
+'''
+
 def path_gen(graph, start, event):
     path = nx.shortest_path(graph, start, event_markers[event], weight='weight')
     return path
@@ -674,6 +754,18 @@ def get_element(lst: list, index: int):
 # ### Geo Locating
 
 # %%
+'''
+Function Name: read_csv
+Input: 
+  - csv_name: String, the name of the CSV file to be read
+Output: 
+  - lat_lon: Dictionary, contains ARUCO IDs as keys and corresponding [lat, lon] as values
+Logic: 
+  - Reads the specified CSV file and stores its data in the lat_lon dictionary
+Example Call: 
+  lat_lon = read_csv("lat_lon.csv")
+'''
+
 def read_csv(csv_name: str):
     lat_lon = {}
 
@@ -691,6 +783,19 @@ def read_csv(csv_name: str):
     return lat_lon
 
 # %%
+'''
+Function Name: write_csv
+Input: 
+  - loc: Dictionary, contains ARUCO IDs as keys and corresponding [lat, lon] as values
+  - csv_name: String, the name of the CSV file to be written
+Output: 
+  - None
+Logic: 
+  - Writes the coordinates from the loc dictionary to the specified CSV file
+Example Call: 
+  write_csv({ar_id: coordinate}, "live_data.csv")
+'''
+
 def write_csv(loc, csv_name: str):
 
     # open csv (csv_name)
@@ -705,6 +810,20 @@ def write_csv(loc, csv_name: str):
             csv_writer.writerow([lat, lon])
 
 # %%
+'''
+Function Name: tracker
+Input: 
+  - ar_id: String, ARUCO ID for which the tracker will find lat, lon
+  - lat_lon: Dictionary, contains ARUCO IDs as keys and corresponding [lat, lon] as values
+Output: 
+  - None
+Logic: 
+  - Finds the lat, lon associated with the specified ARUCO ID
+  - Writes these lat, lon to "live_data.csv"
+Example Call: 
+  tracker(ar_id, lat_lon)
+'''
+
 def tracker(ar_id: int, lat_lon: dict):
 
     # find the lat, lon associated with ar_id (aruco id)
@@ -720,14 +839,14 @@ def tracker(ar_id: int, lat_lon: dict):
         write_csv({ar_id: coordinate}, "live_data.csv")
 
 # %%
-def norm_track(path: list, segments: list, curr_node: int, ar_id: int, ind: int, traversed: list, frame_queue: Queue):
+def norm_track(path: list, segments: list, curr_node: int, ar_id: int, ind: int, traversed: list, frame_queue: Queue, oldDetails):
 
     if not frame_queue.empty():
         frame = frame_queue.get()
 
         details, _ = detect_ArUco_details(frame)
         try:
-            if distance(details[bot_marker][0], details[path[curr_node+1]][0]) < distance(details[bot_marker][0], details[path[curr_node]][0]):
+            if distance(details[bot_marker][0], oldDetails[path[curr_node+1]][0]) < distance(details[bot_marker][0], oldDetails[path[curr_node]][0]):
                 curr_node += 1
                 ar_id = path[curr_node]
                 tracker(ar_id, lat_lon)
@@ -750,7 +869,18 @@ def norm_track(path: list, segments: list, curr_node: int, ar_id: int, ind: int,
 # ### THREADING
 
 # %%
-# Function to handle data receiving
+'''
+* Function Name: receive_data
+* Input: 
+  - conn: Connection object
+  - received_queue: Queue of messages received from esp32
+* Output: 
+  - None
+* Logic: 
+  - Thread that constantly receives data from robot
+* Example Call: receive_data(conn, received_queue)
+'''
+
 def receive_data(conn, received_queue: Queue):
     # global received_data
     while True:
@@ -764,7 +894,18 @@ def receive_data(conn, received_queue: Queue):
             pass
 
 # %%
-# Function to display Live Feed
+'''
+* Function Name: display
+* Input: 
+  - cap: Camera object
+  - received_queue: Queue to store frames
+* Output: 
+  - None
+* Logic: 
+  - Thread that constantly Displays and Puts frames in queue
+* Example Call: display(cap, frame_queue)
+'''
+
 def display(cap, frame_queue: Queue):    
     while True:
         _, frame = cap.read()  
@@ -790,9 +931,6 @@ torch.manual_seed(42)
 torch.cuda.manual_seed(42)
 
 # %%
-# afdaf
-
-# %%
 if 'cap' not in globals():
     # Open the camera
     cap = cv2.VideoCapture(0)
@@ -815,9 +953,6 @@ if 'cap' not in globals():
         exit()
 
 # %%
-# stop camwra
-
-# %%
 event_markers = {
     'A': 21,
     'B': 29,
@@ -838,17 +973,6 @@ ar_id = 23
 tracker(ar_id, lat_lon)
 
 # %%
-# priority_list = list('EF')
-# oldBuffer = 23
-# start = 23
-# for i, event in enumerate(priority_list):
-#     path = path_gen(graph, start, event)
-#     command, segments, oldBuffer = command_gen(coords, path, oldBuffer)
-#     print(command, segments)
-#     start = event_markers[priority_list[i]]
-
-
-# %%
 while True:
     try:
         events = classifyArena(cap, "images/captured.jpg", [0]*5)
@@ -865,34 +989,14 @@ priority_list.append('F')
 
 
 # %%
-# priority_list = list("CEABF")
 
 # %%
-def test(event):
-    try:
-        event = event_markers[event]
-        _, frame = cap.read()
-        details, _ = detect_ArUco_details(frame)
-        ang, dir = event_angle(details[event][0], details[bot_marker][0])
-        dist = distance(details[event][0], details[bot_marker][0])
-        # print(ang, dist)
-        cv2.imshow("Live Feed", frame)
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
-    except IndexError:
-        pass
-    
+while True:
+    ret, frame = cap.read()
+    oldDetails, oldCorners = detect_ArUco_details(frame)
+    if len(oldDetails) == 51 and 100 not in oldDetails.keys():
+        break
 
-
-# %%
-# E 34 48
-# D
-# C 27 38
-# B 23 26 150
-# A 26 32
-
-# %%
-# priority_list = list('CEABF')
 
 # %%
 esp32_ip = ""  # Change this to the IP address of your ESP32
@@ -929,6 +1033,7 @@ try:
                     subPath = path_gen(graph, 23, event)
 
                 subCommands, subSegments, oldBuffer = command_gen(coords, subPath, oldBuffer)
+                # print(subCommands)
                 ind = -2
                 
                 # for i in range(len(subCommands)-1):
@@ -940,8 +1045,6 @@ try:
                 #         if subCommands[i] == 1 and skip_test(subCommands[i-1], subCommands[i+1]):
                 #             subCommands[i] = 7
 
-                # print(subCommands)
-                # print(subSegments)
 
                 # Create a stop event
                 curr_node = 0
@@ -949,26 +1052,20 @@ try:
                 traversed = []
                 tracker(ar_id, lat_lon)
 
-                curr_node, ar_id, ind = norm_track(subPath, subSegments, curr_node, ar_id, ind, traversed, frame_queue)
+                curr_node, ar_id, ind = norm_track(subPath, subSegments, curr_node, ar_id, ind, traversed, frame_queue, oldDetails)
 
-                conn.sendall(str.encode(str(subCommands[0])))
+                conn.sendall(str.encode(f"{str(subCommands[0])}"))
                 # print(f"Command Sent : {subCommands[0]}")
                 i = 1
 
-                while not atEvent(bot_marker, event, frame_queue, event_markers):
-                    curr_node, ar_id, ind = norm_track(subPath, subSegments, curr_node, ar_id, ind, traversed, frame_queue)
+                while not atEvent(bot_marker, event, frame_queue, event_markers, oldDetails):
+                    curr_node, ar_id, ind = norm_track(subPath, subSegments, curr_node, ar_id, ind, traversed, frame_queue, oldDetails)
     
                     result, traversed = isNode(ar_id, traversed)
-                    
-                    # if ind+2 > i and not result and (
-                    #     priority_list[j-1] in ['D', 'E'] and event in ['D', 'A', 'B', 'C']
-                    # ) and i not in [0, 1]:
-                    #     # print("Replaced i : ", ind+2, i)                          
-                    #     i = min(ind + 2, len(subCommands)-1)
 
                     if not result and (
-                        priority_list[j-1] in ['D', 'E'] and event in ['D', 'A', 'B', 'C']
-                    ) and i not in [0, 1]:
+                        event == 'E'
+                    ) and i not in [0, 1] and i < 3:
                         # print("Replaced i : ", ind+2, i)                          
                         i = min(ind + 2, len(subCommands)-1)                           
 
@@ -981,7 +1078,7 @@ try:
                         ) and i < len(subCommands):  
 
                         try:                     
-                            conn.sendall(str.encode(str(subCommands[i])))
+                            conn.sendall(str.encode(f"{str(subCommands[i])}"))
                             # print(f"Command Processed : {subCommands[i-1]}")
                             # print(f"Command Sent : {subCommands[i]}")
                             i += 1
@@ -990,10 +1087,10 @@ try:
                             pass
                     
                     if received_data == 'positive':
-                        print("Done")
+                        # print("Done")
                         break
                 else:
-                    conn.sendall(str.encode(str(5)))
+                    conn.sendall(str.encode("5"))
                     # print(f"Command Sent: 5")
                     while received_data != "buzz":
                         if not received_queue.empty():
